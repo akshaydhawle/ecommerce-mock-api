@@ -45,6 +45,58 @@ server.post('/logout', (req, res) => {
   res.json({ message: 'Logout successful' });
 });
 
+// Custom route to handle retrieving all products with variants
+server.get('/products', (req, res) => {
+  const products = router.db.get('products').value();
+  const variants = router.db.get('variants').value();
+
+  const searchQuery = req.query.q; // Get the search query from the "q" parameter in the query string
+
+  const productsWithVariants = products.map(product => ({
+    ...product,
+    variants: variants.filter(variant => variant.productId === product.id)
+  }));
+
+  // Perform the search based on the product name
+  if (searchQuery) {
+    const filteredProducts = productsWithVariants.filter(product =>
+      product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    res.json(filteredProducts);
+  } else {
+    res.json(productsWithVariants);
+  }
+});
+
+server.delete('/products/:id', (req, res) => {
+  const productId = parseInt(req.params.id);
+  const products = router.db.get('products');
+  const variants = router.db.get('variants');
+
+  // Remove product
+  router.db.get('products')
+    .remove({ id: productId })
+    .write();
+
+  // Remove associated variants
+  router.db.get('variants')
+    .remove({ productId: productId })
+    .write();
+
+  res.sendStatus(204);
+});
+
+server.delete('/variants/:id', (req, res) => {
+  const variantId = parseInt(req.params.id);
+
+  // Remove product
+  router.db.get('variants')
+    .remove({ id: variantId })
+    .write();
+
+  res.sendStatus(204);
+});
+
 server.use(router);
 server.listen(3000, () => {
   console.log('JSON Server is running on port 3000');
